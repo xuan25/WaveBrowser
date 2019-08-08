@@ -46,29 +46,39 @@ namespace WaveBrowser
         {
             if (Samples == null)
                 return;
-            if (e.Delta > 0)
-            {
-                Count = (int)(Count / 1.1);
-                Bitmap bitmap = new Bitmap(WaveBitmap.Width, WaveBitmap.Height);
-                Graphics graphics = Graphics.FromImage(bitmap);
-                graphics.DrawImage(WaveBitmap, new System.Drawing.Rectangle(0, 0, WaveBitmap.Width, WaveBitmap.Height), new System.Drawing.Rectangle(0, 0, (int)(WaveBitmap.Width/1.1), WaveBitmap.Height), GraphicsUnit.Pixel);
-                WaveBitmap = bitmap;
-                WaveImage.Source = BitmapToBitmapImage(bitmap);
-            }
-            else
-            {
-                Count = (int)(Count * 1.1);
-                if (Count > Samples[0].Length)
-                    Count = Samples[0].Length;
-                if (Start + Count > Samples[0].Length)
-                    Start = Samples[0].Length - Count;
-                Bitmap bitmap = new Bitmap(WaveBitmap.Width, WaveBitmap.Height);
-                Graphics graphics = Graphics.FromImage(bitmap);
-                graphics.DrawImage(WaveBitmap, new System.Drawing.Rectangle(0, 0, (int)(WaveBitmap.Width / 1.1), WaveBitmap.Height), new System.Drawing.Rectangle(0, 0, WaveBitmap.Width, WaveBitmap.Height), GraphicsUnit.Pixel);
-                WaveBitmap = bitmap;
-                WaveImage.Source = BitmapToBitmapImage(bitmap);
 
-            }
+            System.Windows.Point point = e.GetPosition(WaveImage);
+            double frameSizeBefore = Count / (WaveImage.RenderSize.Width + 1);
+            int fixedX = (int)point.X;
+
+            double scale;
+            if (e.Delta > 0)
+                scale = 1.2;
+            else
+                scale = 0.8;
+
+            Count = (int)(Count / scale);
+
+            double frameSizeAfter = Count / (WaveImage.RenderSize.Width + 1);
+            double SampleOffset = (frameSizeBefore - frameSizeAfter) * fixedX;
+            Start += (int)SampleOffset;
+
+            if (Count > Samples[0].Length)
+                Count = Samples[0].Length;
+            if (Start < 0)
+                Start = 0;
+            else if (Start + Count > Samples[0].Length)
+                Start = Samples[0].Length - Count;
+
+            double imageOffset = fixedX * (1 - scale);
+            Bitmap bitmap = new Bitmap(WaveBitmap.Width, WaveBitmap.Height);
+            Graphics graphics = Graphics.FromImage(bitmap);
+            graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+            graphics.DrawImage(WaveBitmap, new System.Drawing.Rectangle((int)imageOffset, 0, (int)(WaveBitmap.Width * scale), WaveBitmap.Height));
+            WaveBitmap = bitmap;
+            WaveImage.Source = BitmapToBitmapImage(bitmap);
+
             RenderWaveformAsync(Samples, System.Drawing.Color.FromArgb(0xCC, 0x00, 0x80, 0xFF), Start, Count);
         }
 
