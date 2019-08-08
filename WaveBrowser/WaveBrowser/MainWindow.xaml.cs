@@ -165,17 +165,19 @@ namespace WaveBrowser
                 }
                 else
                 {
-                    Graphics graphics = Graphics.FromImage(bitmap);
-                    for (int c = 0; c < channels.Length; c++)
+                    using (Graphics graphics = Graphics.FromImage(bitmap))
                     {
-                        float channelYOffset = c * (float)channelHeight;
-                        PointF[] points = new PointF[count];
-                        double sampleInterval = width / (count - 1);
-                        for (int i = 0; i < count; i++)
+                        for (int c = 0; c < channels.Length; c++)
                         {
-                            points[i] = new PointF((float)(i * sampleInterval), (float)((-channels[c][start + i] + 1) * yScale + channelYOffset));
+                            float channelYOffset = c * (float)channelHeight;
+                            PointF[] points = new PointF[count];
+                            double sampleInterval = width / (count - 1);
+                            for (int i = 0; i < count; i++)
+                            {
+                                points[i] = new PointF((float)(i * sampleInterval), (float)((-channels[c][start + i] + 1) * yScale + channelYOffset));
+                            }
+                            graphics.DrawCurve(new System.Drawing.Pen(color), points);
                         }
-                        graphics.DrawCurve(new System.Drawing.Pen(color), points);
                     }
                 }
                 
