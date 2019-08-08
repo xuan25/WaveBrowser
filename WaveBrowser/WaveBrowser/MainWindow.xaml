@@ -7,7 +7,7 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <Grid>
-        <Border>
+        <Border x:Name="WaveBorder">
             <Image x:Name="WaveImage" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Stretch="Fill"/>
         </Border>
     </Grid>

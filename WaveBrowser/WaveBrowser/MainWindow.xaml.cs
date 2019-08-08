@@ -26,42 +26,61 @@ namespace WaveBrowser
     public partial class MainWindow : Window
     {
         float[][] Samples;
+        int Start, Count;
+        Bitmap WaveBitmap;
 
         public MainWindow()
         {
             InitializeComponent();
             Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.RealTime;
 
-            BitmapImage bitmapImage = new BitmapImage();
-            using (MemoryStream stream = new MemoryStream())
-            {
-                Bitmap bitmap = new Bitmap(1, 1);
-                bitmap.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
-                stream.Position = 0;
-                bitmapImage.BeginInit();
-                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-                bitmapImage.StreamSource = stream;
-                bitmapImage.EndInit();
-                bitmapImage.Freeze();
-            }
-            WaveImage.Source = bitmapImage;
+            WaveBitmap = new Bitmap(1, 1);
+            WaveImage.Source = BitmapToBitmapImage(WaveBitmap);
 
             Loaded += MainWindow_Loaded;
             WaveImage.SizeChanged += WaveImage_SizeChanged;
+            WaveBorder.MouseWheel += WaveBorder_MouseWheel;
+        }
+
+        private void WaveBorder_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (Samples == null)
+                return;
+            if (e.Delta > 0)
+            {
+                Count = (int)(Count / 1.1);
+                Bitmap bitmap = new Bitmap(WaveBitmap.Width, WaveBitmap.Height);
+                Graphics graphics = Graphics.FromImage(bitmap);
+                graphics.DrawImage(WaveBitmap, new System.Drawing.Rectangle(0, 0, WaveBitmap.Width, WaveBitmap.Height), new System.Drawing.Rectangle(0, 0, (int)(WaveBitmap.Width/1.1), WaveBitmap.Height), GraphicsUnit.Pixel);
+                WaveBitmap = bitmap;
+                WaveImage.Source = BitmapToBitmapImage(bitmap);
+            }
+            else
+            {
+                Count = (int)(Count * 1.1);
+                if (Count > Samples[0].Length)
+                    Count = Samples[0].Length;
+                if (Start + Count > Samples[0].Length)
+                    Start = Samples[0].Length - Count;
+                Bitmap bitmap = new Bitmap(WaveBitmap.Width, WaveBitmap.Height);
+                Graphics graphics = Graphics.FromImage(bitmap);
+                graphics.DrawImage(WaveBitmap, new System.Drawing.Rectangle(0, 0, (int)(WaveBitmap.Width / 1.1), WaveBitmap.Height), new System.Drawing.Rectangle(0, 0, WaveBitmap.Width, WaveBitmap.Height), GraphicsUnit.Pixel);
+                WaveBitmap = bitmap;
+                WaveImage.Source = BitmapToBitmapImage(bitmap);
+
+            }
+            RenderWaveformAsync(Samples, System.Drawing.Color.FromArgb(0xCC, 0x00, 0x80, 0xFF), Start, Count);
         }
 
         private void WaveImage_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            RenderWaveformAsync(Samples, System.Drawing.Color.FromArgb(0xCC, 0x00, 0x80, 0xFF));
+            if (Samples != null)
+                RenderWaveformAsync(Samples, System.Drawing.Color.FromArgb(0xCC, 0x00, 0x80, 0xFF), Start, Count);
         }
 
         CancellationTokenSource RenderCancellationTokenSource;
-        private Task RenderWaveformAsync(float[][] channels, System.Drawing.Color color)
+        private Task RenderWaveformAsync(float[][] channels, System.Drawing.Color color, int start, int count)
         {
-            // Check params
-            if (channels == null)
-                return null;
-
             // Cancellation
             if (RenderCancellationTokenSource != null)
                 RenderCancellationTokenSource.Cancel();
@@ -71,7 +90,7 @@ namespace WaveBrowser
             // Calc propertise
             double width = WaveImage.RenderSize.Width;
             double height = WaveImage.RenderSize.Height;
-            int samplesCount = channels[0].Length;
+            int samplesCount = count;
             double channelHeight = WaveImage.RenderSize.Height / channels.Length;
             double channelWidth = WaveImage.RenderSize.Width;
             float yScale = (float)channelHeight / 2;
@@ -97,7 +116,7 @@ namespace WaveBrowser
                     for (int x = 0; x < channelWidth; x++)
                     {
                         double frameSize = samplesCount / (channelWidth + 1);
-                        int startIndex = (int)(frameSize * x);
+                        int startIndex = start + (int)(frameSize * x);
 
                         float max = -1;
                         float min = 1;
@@ -132,28 +151,35 @@ namespace WaveBrowser
                 bitmap.UnlockBits(bitmapData);
 
                 // Convert
-                BitmapImage bitmapImage = new BitmapImage();
-                using (MemoryStream stream = new MemoryStream())
-                {
-                    bitmap.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
-                    stream.Position = 0;
-                    bitmapImage.BeginInit();
-                    bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-                    bitmapImage.StreamSource = stream;
-                    bitmapImage.EndInit();
-                    bitmapImage.Freeze();
-                }
+                BitmapImage bitmapImage = BitmapToBitmapImage(bitmap);
                 // Display
                 Dispatcher.Invoke(new Action(() =>
                 {
                     if (cancellationToken.IsCancellationRequested)
                         return;
                     WaveImage.Source = bitmapImage;
+                    WaveBitmap = bitmap;
                 }));
             }));
             task.Start();
 
             return task;
+        }
+
+        private BitmapImage BitmapToBitmapImage(Bitmap bitmap)
+        {
+            using (MemoryStream stream = new MemoryStream())
+            {
+                BitmapImage bitmapImage = new BitmapImage();
+                bitmap.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
+                stream.Position = 0;
+                bitmapImage.BeginInit();
+                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                bitmapImage.StreamSource = stream;
+                bitmapImage.EndInit();
+                bitmapImage.Freeze();
+                return bitmapImage;
+            }
         }
 
         private float[][] LoadChannels(string filename)
@@ -181,7 +207,9 @@ namespace WaveBrowser
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             Samples = LoadChannels("test.mp3");
-            RenderWaveformAsync(Samples, System.Drawing.Color.FromArgb(0xCC, 0x00, 0x80, 0xFF));
+            Start = 0;
+            Count = Samples[0].Length;
+            RenderWaveformAsync(Samples, System.Drawing.Color.FromArgb(0xCC, 0x00, 0x80, 0xFF), Start, Count);
         }
     }
 }
