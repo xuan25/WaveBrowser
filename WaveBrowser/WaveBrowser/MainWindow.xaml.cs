@@ -175,7 +175,7 @@ namespace WaveBrowser
                         {
                             points[i] = new PointF((float)(i * sampleInterval), (float)((-channels[c][start + i] + 1) * yScale + channelYOffset));
                         }
-                        graphics.DrawLines(new System.Drawing.Pen(color), points);
+                        graphics.DrawCurve(new System.Drawing.Pen(color), points);
                     }
                 }
                 
