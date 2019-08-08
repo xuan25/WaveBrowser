@@ -65,6 +65,8 @@ namespace WaveBrowser
 
             if (Count > Samples[0].Length)
                 Count = Samples[0].Length;
+            else if (Count < 4)
+                Count = 4;
             if (Start < 0)
                 Start = 0;
             else if (Start + Count > Samples[0].Length)
@@ -100,65 +102,83 @@ namespace WaveBrowser
             // Calc propertise
             double width = WaveImage.RenderSize.Width;
             double height = WaveImage.RenderSize.Height;
-            int samplesCount = count;
-            double channelHeight = WaveImage.RenderSize.Height / channels.Length;
-            double channelWidth = WaveImage.RenderSize.Width;
-            float yScale = (float)channelHeight / 2;
+            double channelHeight = height / channels.Length;
+            double yScale = channelHeight / channels.Length;
 
             // Render task
             Task task = new Task(new Action(() =>
             {
                 // Create Bitmap
                 Bitmap bitmap = new Bitmap((int)width, (int)height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-                // Lock data
-                System.Drawing.Imaging.BitmapData bitmapData = bitmap.LockBits(new System.Drawing.Rectangle(0, 0, bitmap.Width, bitmap.Height), System.Drawing.Imaging.ImageLockMode.ReadWrite, bitmap.PixelFormat);
-                // Bytes ptr
-                IntPtr bitmapDataIntPtr = bitmapData.Scan0;
-                // Copy to array
-                int pixelLength = 4;
-                int bytesLength = Math.Abs(bitmapData.Stride) * bitmap.Height;
-                byte[] bytes = new byte[bytesLength];
-                System.Runtime.InteropServices.Marshal.Copy(bitmapDataIntPtr, bytes, 0, bytesLength);
-                // Render
-                for (int c = 0; c < channels.Length; c++)
+
+                if(count > width * 4)
                 {
-                    float channelYOffset = c * (float)channelHeight;
-                    for (int x = 0; x < channelWidth; x++)
+                    // Lock data
+                    System.Drawing.Imaging.BitmapData bitmapData = bitmap.LockBits(new System.Drawing.Rectangle(0, 0, bitmap.Width, bitmap.Height), System.Drawing.Imaging.ImageLockMode.ReadWrite, bitmap.PixelFormat);
+                    // Bytes ptr
+                    IntPtr bitmapDataIntPtr = bitmapData.Scan0;
+                    // Copy to array
+                    int pixelLength = 4;
+                    int bytesLength = Math.Abs(bitmapData.Stride) * bitmap.Height;
+                    byte[] bytes = new byte[bytesLength];
+                    System.Runtime.InteropServices.Marshal.Copy(bitmapDataIntPtr, bytes, 0, bytesLength);
+                    // Render
+                    for (int c = 0; c < channels.Length; c++)
                     {
-                        double frameSize = samplesCount / (channelWidth + 1);
-                        int startIndex = start + (int)(frameSize * x);
-
-                        float max = -1;
-                        float min = 1;
-                        for (int i = 0; i < frameSize; i++)
+                        float channelYOffset = c * (float)channelHeight;
+                        for (int x = 0; x < width; x++)
                         {
-                            float sample = channels[c][startIndex + i];
-                            if (sample > max)
-                                max = sample;
-                            if (sample < min)
-                                min = sample;
-                        }
+                            double frameSize = count / (width + 1);
+                            int startIndex = start + (int)(frameSize * x);
 
-                        int startY = (int)((-max + 1) * yScale + channelYOffset);
-                        int endY = (int)((-min + 1) * yScale + channelYOffset);
-                        for(int y = startY; y < endY; y++)
-                        {
-                            int pixelStartIndex = (y * Math.Abs(bitmapData.Stride)) + x * pixelLength;
-                            bytes[pixelStartIndex] = color.B;
-                            bytes[pixelStartIndex + 1] = color.G;
-                            bytes[pixelStartIndex + 2] = color.R;
-                            bytes[pixelStartIndex + 3] = color.A;
-                            if (cancellationToken.IsCancellationRequested)
+                            float max = -1;
+                            float min = 1;
+                            for (int i = 0; i < frameSize; i++)
                             {
-                                bitmap.UnlockBits(bitmapData);
-                                return;
+                                float sample = channels[c][startIndex + i];
+                                if (sample > max)
+                                    max = sample;
+                                if (sample < min)
+                                    min = sample;
+                            }
+
+                            int startY = (int)((-max + 1) * yScale + channelYOffset);
+                            int endY = (int)((-min + 1) * yScale + channelYOffset);
+                            for (int y = startY; y < endY; y++)
+                            {
+                                int pixelStartIndex = (y * Math.Abs(bitmapData.Stride)) + x * pixelLength;
+                                bytes[pixelStartIndex] = color.B;
+                                bytes[pixelStartIndex + 1] = color.G;
+                                bytes[pixelStartIndex + 2] = color.R;
+                                bytes[pixelStartIndex + 3] = color.A;
+                                if (cancellationToken.IsCancellationRequested)
+                                {
+                                    bitmap.UnlockBits(bitmapData);
+                                    return;
+                                }
                             }
                         }
                     }
+                    // Copy to bitmap data & Unlock data
+                    System.Runtime.InteropServices.Marshal.Copy(bytes, 0, bitmapDataIntPtr, bytesLength);
+                    bitmap.UnlockBits(bitmapData);
                 }
-                // Copy to bitmap data & Unlock data
-                System.Runtime.InteropServices.Marshal.Copy(bytes, 0, bitmapDataIntPtr, bytesLength);
-                bitmap.UnlockBits(bitmapData);
+                else
+                {
+                    Graphics graphics = Graphics.FromImage(bitmap);
+                    for (int c = 0; c < channels.Length; c++)
+                    {
+                        float channelYOffset = c * (float)channelHeight;
+                        PointF[] points = new PointF[count];
+                        double sampleInterval = width / (count - 1);
+                        for (int i = 0; i < count; i++)
+                        {
+                            points[i] = new PointF((float)(i * sampleInterval), (float)((-channels[c][start + i] + 1) * yScale + channelYOffset));
+                        }
+                        graphics.DrawLines(new System.Drawing.Pen(color), points);
+                    }
+                }
+                
 
                 // Convert
                 BitmapImage bitmapImage = BitmapToBitmapImage(bitmap);
