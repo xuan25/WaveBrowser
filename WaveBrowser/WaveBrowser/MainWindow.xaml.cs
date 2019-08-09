@@ -26,7 +26,7 @@ namespace WaveBrowser
     public partial class MainWindow : Window
     {
         float[][] Samples;
-        int Start, Count;
+        double Start, Count;
         Bitmap WaveBitmap;
 
         public MainWindow()
@@ -48,18 +48,18 @@ namespace WaveBrowser
                 return;
             if (Keyboard.IsKeyDown(Key.LeftShift))
             {
-                int offset;
+                double offset;
                 if (e.Delta > 0)
-                    offset = -(int)(Count * 0.1);
+                    offset = -(Count * 0.1);
                 else
-                    offset = (int)(Count * 0.1);
+                    offset = (Count * 0.1);
 
                 Start += offset;
 
                 if (Start < 0)
                     Start = 0;
-                else if (Start + Count > Samples[0].Length)
-                    Start = Samples[0].Length - Count;
+                else if (Start + Count > Samples[0].Length - 1)
+                    Start = Samples[0].Length - Count - 1;
 
                 double frameSize = Count / (WaveImage.RenderSize.Width + 1);
                 double imageOffset = offset / frameSize;
@@ -75,28 +75,31 @@ namespace WaveBrowser
             {
                 System.Windows.Point point = e.GetPosition(WaveImage);
                 double frameSizeBefore = Count / (WaveImage.RenderSize.Width + 1);
-                int fixedX = (int)point.X;
+                double fixedX = point.X;
 
                 double scale;
                 if (e.Delta > 0)
-                    scale = 1.2;
+                    scale = 1.5;
                 else
-                    scale = 0.8;
+                    scale = 1 / 1.5;
 
-                Count = (int)(Count / scale);
+                Count /= scale;
 
-                double frameSizeAfter = Count / (WaveImage.RenderSize.Width + 1);
-                double SampleOffset = (frameSizeBefore - frameSizeAfter) * fixedX;
-                Start += (int)SampleOffset;
+                if (!(Count < 4))
+                {
+                    double frameSizeAfter = Count / (WaveImage.RenderSize.Width + 1);
+                    double SampleOffset = (frameSizeBefore - frameSizeAfter) * fixedX;
+                    Start += SampleOffset;
+                }  
 
-                if (Count > Samples[0].Length)
-                    Count = Samples[0].Length;
+                if (Count > Samples[0].Length - 1)
+                    Count = Samples[0].Length - 1;
                 else if (Count < 4)
                     Count = 4;
                 if (Start < 0)
                     Start = 0;
-                else if (Start + Count > Samples[0].Length)
-                    Start = Samples[0].Length - Count;
+                else if (Start + Count > Samples[0].Length - 1)
+                    Start = Samples[0].Length - Count - 1;
 
                 double imageOffset = fixedX * (1 - scale);
                 Bitmap bitmap = new Bitmap(WaveBitmap.Width, WaveBitmap.Height);
@@ -118,7 +121,7 @@ namespace WaveBrowser
         }
 
         CancellationTokenSource RenderCancellationTokenSource;
-        private Task RenderWaveformAsync(float[][] channels, System.Drawing.Color color, int start, int count)
+        private Task RenderWaveformAsync(float[][] channels, System.Drawing.Color color, double start, double count)
         {
             // Cancellation
             if (RenderCancellationTokenSource != null)
@@ -156,7 +159,7 @@ namespace WaveBrowser
                         for (int x = 0; x < width; x++)
                         {
                             double frameSize = count / (width + 1);
-                            int startIndex = start + (int)(frameSize * x);
+                            int startIndex = (int)(start + frameSize * x);
 
                             float max = -1;
                             float min = 1;
@@ -197,17 +200,17 @@ namespace WaveBrowser
                         for (int c = 0; c < channels.Length; c++)
                         {
                             float channelYOffset = c * (float)channelHeight;
-                            PointF[] points = new PointF[count];
+                            PointF[] points = new PointF[(int)Math.Ceiling(count + 1)];
                             double sampleInterval = width / (count - 1);
-                            for (int i = 0; i < count; i++)
+                            double offset = (start - Math.Ceiling(start)) * sampleInterval;
+                            for (int i = 0; i < count + 1; i++)
                             {
-                                points[i] = new PointF((float)(i * sampleInterval), (float)((-channels[c][start + i] + 1) * yScale + channelYOffset));
+                                points[i] = new PointF((float)(i * sampleInterval + offset), (float)((-channels[c][(int)Math.Floor(start + i)] + 1) * yScale + channelYOffset));
                             }
                             graphics.DrawCurve(new System.Drawing.Pen(color), points);
                         }
                     }
                 }
-                
 
                 // Convert
                 BitmapImage bitmapImage = BitmapToBitmapImage(bitmap);
