@@ -92,6 +92,7 @@ namespace WaveBrowser
                     Count = Samples[0].Length - 1;
                 else if (Count < 4)
                     Count = 4;
+
                 if (Start < 0)
                     Start = 0;
                 else if (Start + Count > Samples[0].Length - 1)
@@ -263,7 +264,7 @@ namespace WaveBrowser
         {
             Samples = LoadChannels("test.mp3");
             Start = 0;
-            Count = Samples[0].Length;
+            Count = Samples[0].Length - 1;
             RenderWaveformAsync(Samples, System.Drawing.Color.FromArgb(0xCC, 0x00, 0x80, 0xFF), Start, Count);
         }
     }
