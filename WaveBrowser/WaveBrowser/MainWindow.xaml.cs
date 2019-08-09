@@ -48,11 +48,7 @@ namespace WaveBrowser
                 return;
             if (Keyboard.IsKeyDown(Key.LeftShift))
             {
-                double offset;
-                if (e.Delta > 0)
-                    offset = -(Count * 0.1);
-                else
-                    offset = (Count * 0.1);
+                double offset = -(Count * e.Delta * 0.001);
 
                 Start += offset;
 
@@ -79,9 +75,11 @@ namespace WaveBrowser
 
                 double scale;
                 if (e.Delta > 0)
-                    scale = 1.5;
+                    //scale = 1.5;
+                    scale = 1 + e.Delta * 0.005;
                 else
-                    scale = 1 / 1.5;
+                    scale = 1 / (1 + -e.Delta * 0.005);
+                    
 
                 Count /= scale;
 
