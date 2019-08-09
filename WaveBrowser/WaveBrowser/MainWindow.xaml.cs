@@ -149,7 +149,7 @@ namespace WaveBrowser
                     // Render
                     for (int c = 0; c < channels.Length; c++)
                     {
-                        float channelYOffset = c * (float)channelHeight;
+                        double channelYOffset = c * channelHeight;
                         for (int x = 0; x < width; x++)
                         {
                             double frameSize = count / (width + 1);
@@ -157,7 +157,7 @@ namespace WaveBrowser
 
                             float max = -1;
                             float min = 1;
-                            for (int i = 0; i < frameSize; i++)
+                            for (int i = 0; i < Math.Ceiling(frameSize); i++)
                             {
                                 float sample = channels[c][startIndex + i];
                                 if (sample > max)
@@ -166,20 +166,33 @@ namespace WaveBrowser
                                     min = sample;
                             }
 
+                            
                             int startY = (int)((-max + 1) * yScale + channelYOffset);
                             int endY = (int)((-min + 1) * yScale + channelYOffset);
-                            for (int y = startY; y < endY; y++)
+                            if(startY == endY)
                             {
-                                int pixelStartIndex = (y * Math.Abs(bitmapData.Stride)) + x * pixelLength;
+                                int pixelStartIndex = (startY * Math.Abs(bitmapData.Stride)) + x * pixelLength;
                                 bytes[pixelStartIndex] = color.B;
                                 bytes[pixelStartIndex + 1] = color.G;
                                 bytes[pixelStartIndex + 2] = color.R;
                                 bytes[pixelStartIndex + 3] = color.A;
-                                if (cancellationToken.IsCancellationRequested)
+                            }
+                            else
+                            {
+                                for (int y = startY; y < endY; y++)
                                 {
-                                    bitmap.UnlockBits(bitmapData);
-                                    return;
+                                    int pixelStartIndex = (y * Math.Abs(bitmapData.Stride)) + x * pixelLength;
+                                    bytes[pixelStartIndex] = color.B;
+                                    bytes[pixelStartIndex + 1] = color.G;
+                                    bytes[pixelStartIndex + 2] = color.R;
+                                    bytes[pixelStartIndex + 3] = color.A;
                                 }
+                            }
+                            
+                            if (cancellationToken.IsCancellationRequested)
+                            {
+                                bitmap.UnlockBits(bitmapData);
+                                return;
                             }
                         }
                     }
