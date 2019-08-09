@@ -75,7 +75,6 @@ namespace WaveBrowser
 
                 double scale;
                 if (e.Delta > 0)
-                    //scale = 1.5;
                     scale = 1 + e.Delta * 0.005;
                 else
                     scale = 1 / (1 + -e.Delta * 0.005);
@@ -200,10 +199,10 @@ namespace WaveBrowser
                             float channelYOffset = c * (float)channelHeight;
                             PointF[] points = new PointF[(int)Math.Ceiling(count + 1)];
                             double sampleInterval = width / (count - 1);
-                            double offset = (start - Math.Ceiling(start)) * sampleInterval;
+                            double offset = (start - Math.Floor(start)) * sampleInterval;
                             for (int i = 0; i < count + 1; i++)
                             {
-                                points[i] = new PointF((float)(i * sampleInterval + offset), (float)((-channels[c][(int)Math.Floor(start + i)] + 1) * yScale + channelYOffset));
+                                points[i] = new PointF((float)(i * sampleInterval - offset), (float)((-channels[c][(int)Math.Floor(start + i)] + 1) * yScale + channelYOffset));
                             }
                             graphics.DrawCurve(new System.Drawing.Pen(color), points);
                         }
