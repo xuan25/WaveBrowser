@@ -46,6 +46,10 @@ namespace WaveBrowser
         {
             if (Samples == null)
                 return;
+            Bitmap bitmapPreview = new Bitmap(WaveBitmap.Width, WaveBitmap.Height);
+            Graphics graphicsPreview = Graphics.FromImage(bitmapPreview);
+            graphicsPreview.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            graphicsPreview.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
             if (Keyboard.IsKeyDown(Key.LeftShift))
             {
                 double offset = -(Count * e.Delta * 0.001);
@@ -59,13 +63,8 @@ namespace WaveBrowser
 
                 double frameSize = Count / (WaveImage.RenderSize.Width + 1);
                 double imageOffset = offset / frameSize;
-                Bitmap bitmap = new Bitmap(WaveBitmap.Width, WaveBitmap.Height);
-                Graphics graphics = Graphics.FromImage(bitmap);
-                graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
-                graphics.DrawImage(WaveBitmap, new System.Drawing.Rectangle(-(int)imageOffset, 0, WaveBitmap.Width, WaveBitmap.Height));
-                WaveBitmap = bitmap;
-                WaveImage.Source = BitmapToBitmapImage(bitmap);
+                graphicsPreview.DrawImage(WaveBitmap, -(float)imageOffset, 0, WaveBitmap.Width, WaveBitmap.Height);
+                
             }
             else
             {
@@ -99,14 +98,11 @@ namespace WaveBrowser
                     Start = Samples[0].Length - Count - 1;
 
                 double imageOffset = fixedX * (1 - scale);
-                Bitmap bitmap = new Bitmap(WaveBitmap.Width, WaveBitmap.Height);
-                Graphics graphics = Graphics.FromImage(bitmap);
-                graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
-                graphics.DrawImage(WaveBitmap, new System.Drawing.Rectangle((int)imageOffset, 0, (int)(WaveBitmap.Width * scale), WaveBitmap.Height));
-                WaveBitmap = bitmap;
-                WaveImage.Source = BitmapToBitmapImage(bitmap);
+                
+                graphicsPreview.DrawImage(WaveBitmap, (float)imageOffset, 0, (float)(WaveBitmap.Width * scale), WaveBitmap.Height);
             }
+            WaveBitmap = bitmapPreview;
+            WaveImage.Source = BitmapToBitmapImage(bitmapPreview);
 
             RenderWaveformAsync(Samples, System.Drawing.Color.FromArgb(0xCC, 0x00, 0x80, 0xFF), Start, Count);
         }
