@@ -40,71 +40,14 @@ namespace WaveBrowser
             Loaded += MainWindow_Loaded;
             WaveImage.SizeChanged += WaveImage_SizeChanged;
             WaveBorder.MouseWheel += WaveBorder_MouseWheel;
+            WaveBorder.ManipulationDelta += WaveBorder_ManipulationDelta;
         }
 
-        private void WaveBorder_MouseWheel(object sender, MouseWheelEventArgs e)
+        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            if (Samples == null)
-                return;
-            Bitmap bitmapPreview = new Bitmap(WaveBitmap.Width, WaveBitmap.Height);
-            Graphics graphicsPreview = Graphics.FromImage(bitmapPreview);
-            graphicsPreview.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-            graphicsPreview.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
-            if (Keyboard.IsKeyDown(Key.LeftShift))
-            {
-                double offset = -(Count * e.Delta * 0.001);
-
-                Start += offset;
-
-                if (Start < 0)
-                    Start = 0;
-                else if (Start + Count > Samples[0].Length - 1)
-                    Start = Samples[0].Length - Count - 1;
-
-                double frameSize = Count / (WaveImage.RenderSize.Width + 1);
-                double imageOffset = offset / frameSize;
-                graphicsPreview.DrawImage(WaveBitmap, -(float)imageOffset, 0, WaveBitmap.Width, WaveBitmap.Height);
-                
-            }
-            else
-            {
-                System.Windows.Point point = e.GetPosition(WaveImage);
-                double frameSizeBefore = Count / (WaveImage.RenderSize.Width + 1);
-                double fixedX = point.X;
-
-                double scale;
-                if (e.Delta > 0)
-                    scale = 1 + e.Delta * 0.005;
-                else
-                    scale = 1 / (1 + -e.Delta * 0.005);
-                    
-
-                Count /= scale;
-
-                if (!(Count < 4))
-                {
-                    double frameSizeAfter = Count / (WaveImage.RenderSize.Width + 1);
-                    double SampleOffset = (frameSizeBefore - frameSizeAfter) * fixedX;
-                    Start += SampleOffset;
-                }  
-
-                if (Count > Samples[0].Length - 1)
-                    Count = Samples[0].Length - 1;
-                else if (Count < 4)
-                    Count = 4;
-
-                if (Start < 0)
-                    Start = 0;
-                else if (Start + Count > Samples[0].Length - 1)
-                    Start = Samples[0].Length - Count - 1;
-
-                double imageOffset = fixedX * (1 - scale);
-                
-                graphicsPreview.DrawImage(WaveBitmap, (float)imageOffset, 0, (float)(WaveBitmap.Width * scale), WaveBitmap.Height);
-            }
-            WaveBitmap = bitmapPreview;
-            WaveImage.Source = BitmapToBitmapImage(bitmapPreview);
-
+            Samples = LoadChannels("test.mp3");
+            Start = 0;
+            Count = Samples[0].Length - 1;
             RenderWaveformAsync(Samples, System.Drawing.Color.FromArgb(0xCC, 0x00, 0x80, 0xFF), Start, Count);
         }
 
@@ -112,6 +55,88 @@ namespace WaveBrowser
         {
             if (Samples != null)
                 RenderWaveformAsync(Samples, System.Drawing.Color.FromArgb(0xCC, 0x00, 0x80, 0xFF), Start, Count);
+        }
+
+        private void WaveBorder_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (Samples == null)
+                return;
+
+            if (Keyboard.IsKeyDown(Key.LeftShift))
+                Scroll(-(e.Delta));
+            else
+                if (e.Delta > 0)
+                    Resize(e.GetPosition(WaveImage), 1 + e.Delta * 0.005);
+                else
+                    Resize(e.GetPosition(WaveImage), 1 / (1 + -e.Delta * 0.005));
+
+            WaveImage.Source = BitmapToBitmapImage(WaveBitmap);
+            RenderWaveformAsync(Samples, System.Drawing.Color.FromArgb(0xCC, 0x00, 0x80, 0xFF), Start, Count);
+        }
+
+        private void WaveBorder_ManipulationDelta(object sender, ManipulationDeltaEventArgs e)
+        {
+            if (Samples == null || e.DeltaManipulation.Scale.X == 1)
+                return;
+
+            Scroll(-e.DeltaManipulation.Translation.X);
+            Resize(e.ManipulationOrigin, e.DeltaManipulation.Scale.X);
+
+            WaveImage.Source = BitmapToBitmapImage(WaveBitmap);
+            RenderWaveformAsync(Samples, System.Drawing.Color.FromArgb(0xCC, 0x00, 0x80, 0xFF), Start, Count);
+        }
+
+        private void Resize(System.Windows.Point certer, double scale)
+        {
+            double frameSizeBefore = Count / (WaveImage.RenderSize.Width + 1);
+            double fixedX = certer.X;
+
+            Count /= scale;
+
+            if (!(Count < 4))
+            {
+                double frameSizeAfter = Count / (WaveImage.RenderSize.Width + 1);
+                double SampleOffset = (frameSizeBefore - frameSizeAfter) * fixedX;
+                Start += SampleOffset;
+            }
+
+            if (Count > Samples[0].Length - 1)
+                Count = Samples[0].Length - 1;
+            else if (Count < 4)
+                Count = 4;
+
+            if (Start < 0)
+                Start = 0;
+            else if (Start + Count > Samples[0].Length - 1)
+                Start = Samples[0].Length - Count - 1;
+
+            double imageOffset = fixedX * (1 - scale);
+
+            Bitmap bitmapPreview = new Bitmap(WaveBitmap.Width, WaveBitmap.Height);
+            Graphics graphicsPreview = Graphics.FromImage(bitmapPreview);
+            graphicsPreview.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            graphicsPreview.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+            graphicsPreview.DrawImage(WaveBitmap, (float)imageOffset, 0, (float)(WaveBitmap.Width * scale), WaveBitmap.Height);
+            WaveBitmap = bitmapPreview;
+        }
+
+        private void Scroll(double offset)
+        {
+            double frameSize = Count / (WaveImage.RenderSize.Width + 1);
+            Start += offset * frameSize;
+
+            if (Start < 0)
+                Start = 0;
+            else if (Start + Count > Samples[0].Length - 1)
+                Start = Samples[0].Length - Count - 1;
+
+            Bitmap bitmapPreview = new Bitmap(WaveBitmap.Width, WaveBitmap.Height);
+            Graphics graphicsPreview = Graphics.FromImage(bitmapPreview);
+            graphicsPreview.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            graphicsPreview.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+            graphicsPreview.DrawImage(WaveBitmap, -(float)offset, 0, WaveBitmap.Width, WaveBitmap.Height);
+
+            WaveBitmap = bitmapPreview;
         }
 
         CancellationTokenSource RenderCancellationTokenSource;
@@ -271,14 +296,6 @@ namespace WaveBrowser
                 result[i] = channels[i].ToArray();
 
             return result;
-        }
-
-        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
-        {
-            Samples = LoadChannels("test.mp3");
-            Start = 0;
-            Count = Samples[0].Length - 1;
-            RenderWaveformAsync(Samples, System.Drawing.Color.FromArgb(0xCC, 0x00, 0x80, 0xFF), Start, Count);
         }
     }
 }
