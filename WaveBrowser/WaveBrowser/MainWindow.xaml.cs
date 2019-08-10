@@ -13,6 +13,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
@@ -57,13 +58,51 @@ namespace WaveBrowser
                 RenderWaveformAsync(Samples, System.Drawing.Color.FromArgb(0xCC, 0x00, 0x80, 0xFF), Start, Count);
         }
 
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            var source = PresentationSource.FromVisual(WaveBorder);
+            ((HwndSource)source)?.AddHook(Hook);
+        }
+
+        const int WM_MOUSEHWHEEL = 0x020E;
+        private IntPtr Hook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            switch (msg)
+            {
+                case WM_MOUSEHWHEEL:
+                    int tilt = (short)HIWORD(wParam);
+                    OnMouseTilt(tilt);
+                    return (IntPtr)1;
+            }
+            return IntPtr.Zero;
+        }
+
+        private static int HIWORD(IntPtr ptr)
+        {
+            var val32 = ptr.ToInt32();
+            return ((val32 >> 16) & 0xFFFF);
+        }
+
+        private static int LOWORD(IntPtr ptr)
+        {
+            var val32 = ptr.ToInt32();
+            return (val32 & 0xFFFF);
+        }
+
+        private void OnMouseTilt(int tilt)
+        {
+            Scroll(tilt);
+            WaveImage.Source = BitmapToBitmapImage(WaveBitmap);
+            RenderWaveformAsync(Samples, System.Drawing.Color.FromArgb(0xCC, 0x00, 0x80, 0xFF), Start, Count);
+        }
+
         private void WaveBorder_MouseWheel(object sender, MouseWheelEventArgs e)
         {
             if (Samples == null)
                 return;
 
             if (Keyboard.IsKeyDown(Key.LeftShift))
-                Scroll(-(e.Delta));
+                Scroll(-e.Delta);
             else
                 if (e.Delta > 0)
                     Resize(e.GetPosition(WaveImage), 1 + e.Delta * 0.005);
