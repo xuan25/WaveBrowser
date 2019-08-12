@@ -256,38 +256,43 @@ namespace WaveBrowser
 
         private void Resize(System.Windows.Point certer, double scale)
         {
+            double start, count;
             double frameSizeBefore = Count / (WaveImage.RenderSize.Width + 1);
             double fixedX = certer.X;
 
-            Count /= scale;
+            count = Count / scale;
 
-            if (!(Count < 4))
-            {
-                double frameSizeAfter = Count / (WaveImage.RenderSize.Width + 1);
-                double SampleOffset = (frameSizeBefore - frameSizeAfter) * fixedX;
-                Start += SampleOffset;
-            }
+            double frameSizeAfter = count / (WaveImage.RenderSize.Width + 1);
+            double SampleOffset = (frameSizeBefore - frameSizeAfter) * fixedX;
+            start = Start + SampleOffset;
 
-            if (Count > Chanels[0].Length - 1)
-                Count = Chanels[0].Length - 1;
-            else if (Count < 4)
-                Count = 4;
+            if (count > Chanels[0].Length - 1)
+                count = Chanels[0].Length - 1;
+            else if (count < 4)
+                count = 4;
 
-            if (Start < 0)
-                Start = 0;
-            else if (Start + Count > Chanels[0].Length - 1)
-                Start = Chanels[0].Length - Count - 1;
+            if (start < 0)
+                start = 0;
+            else if (start + count > Chanels[0].Length - 1)
+                start = Chanels[0].Length - count - 1;
+
+            Start = start;
+            Count = count;
         }
 
         private void Scroll(double offset)
         {
-            double frameSize = Count / (WaveImage.RenderSize.Width + 1);
-            Start += offset * frameSize;
+            double start;
 
-            if (Start < 0)
-                Start = 0;
-            else if (Start + Count > Chanels[0].Length - 1)
-                Start = Chanels[0].Length - Count - 1;
+            double frameSize = Count / (WaveImage.RenderSize.Width + 1);
+            start = Start + offset * frameSize;
+
+            if (start < 0)
+                start = 0;
+            else if (start + Count > Chanels[0].Length - 1)
+                start = Chanels[0].Length - Count - 1;
+
+            Start = start;
         }
 
         private float[][] LoadChannels(string filename)
