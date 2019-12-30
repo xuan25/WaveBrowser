@@ -21,6 +21,7 @@ namespace WaveBrowser
     {
         float[][] Chanels;
         double Start, End;
+        PerformanceTimer performanceTimer = new PerformanceTimer();
 
         public MainWindow()
         {
@@ -30,6 +31,8 @@ namespace WaveBrowser
 
         private void LoadBtn_Click(object sender, RoutedEventArgs e)
         {
+            performanceTimer.Start();
+
             Chanels = LoadChannels("test.mp3");
             Start = 0;
             End = Chanels[0].Length - 1;
@@ -43,12 +46,18 @@ namespace WaveBrowser
             WaveBorder.ManipulationDelta += WaveBorder_ManipulationDelta;
 
             UpdateRender((int)WaveBorder.ActualWidth, (int)WaveBorder.ActualHeight);
+
+            performanceTimer.Stop();
+            Console.WriteLine("Loading: {0} s", performanceTimer.Duration);
         }
 
         WaveRender waveRender;
         private void WaveBorder_SizeChanged(object sender, SizeChangedEventArgs e)
         {
+            performanceTimer.Start();
             UpdateRender((int)e.NewSize.Width, (int)e.NewSize.Height);
+            performanceTimer.Stop();
+            Console.WriteLine("Update Render: {0} s", performanceTimer.Duration);
         }
 
         private void UpdateRender(int width, int height)
@@ -143,7 +152,11 @@ namespace WaveBrowser
             Start = start;
             End = start + count;
 
+            performanceTimer.Start();
             waveRender.UpdateView(Start, End);
+            performanceTimer.Stop();
+            Console.WriteLine("Render Frame: {0} s", performanceTimer.Duration);
+            FpsBox.Text = string.Format("{0} Fps", 1 / performanceTimer.Duration);
         }
 
         private void Scroll(double offset)
@@ -162,7 +175,11 @@ namespace WaveBrowser
             Start = start;
             End = start + count;
 
+            performanceTimer.Start();
             waveRender.UpdateView(Start, End);
+            performanceTimer.Stop();
+            Console.WriteLine("Render Frame: {0} s", performanceTimer.Duration);
+            FpsBox.Text = string.Format("{0} Fps", 1 / performanceTimer.Duration);
         }
 
         private float[][] LoadChannels(string filename)

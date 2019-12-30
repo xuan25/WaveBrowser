@@ -11,5 +11,6 @@
             <Image x:Name="WaveImage" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Stretch="Fill"/>
         </Border>
         <Button x:Name="LoadBtn" Content="Load" HorizontalAlignment="Left" VerticalAlignment="Top" Width="75" Click="LoadBtn_Click"/>
+        <TextBlock x:Name="FpsBox" HorizontalAlignment="Right" TextWrapping="NoWrap" Text="Fps" VerticalAlignment="Top" Background="White"/>
     </Grid>
 </Window>
