@@ -8,7 +8,6 @@
         Title="MainWindow" Height="450" Width="800">
     <Grid>
         <Border x:Name="WaveBorder" IsManipulationEnabled="True" Background="Transparent" VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
-            <!--<Image x:Name="WaveImage" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Stretch="Fill"/>-->
             <Canvas x:Name="WaveCanvas"/>
         </Border>
         <Button x:Name="LoadBtn" Content="Load" HorizontalAlignment="Left" VerticalAlignment="Top" Width="75" Click="LoadBtn_Click"/>
