@@ -63,8 +63,9 @@ namespace WaveBrowser
         private void UpdateRender(int width, int height)
         {
             waveRender = new WaveRender(this, width, height, Chanels);
+            waveRender.canvas = WaveCanvas;
             waveRender.UpdateView(Start, End);
-            WaveImage.Source = waveRender.WaveformBitmap;
+            //WaveImage.Source = waveRender.WaveformBitmap;
         }
 
         protected override void OnSourceInitialized(EventArgs e)
@@ -112,9 +113,9 @@ namespace WaveBrowser
                 Scroll(-e.Delta);
             else
                 if (e.Delta > 0)
-                    Resize(e.GetPosition(WaveImage), 1 + e.Delta * 0.005);
+                    Resize(e.GetPosition(WaveCanvas), 1 + e.Delta * 0.005);
                 else
-                    Resize(e.GetPosition(WaveImage), 1 / (1 + -e.Delta * 0.005));
+                    Resize(e.GetPosition(WaveCanvas), 1 / (1 + -e.Delta * 0.005));
         }
 
         private void WaveBorder_ManipulationDelta(object sender, ManipulationDeltaEventArgs e)
@@ -130,12 +131,12 @@ namespace WaveBrowser
         {
             double oriCount = End - Start;
             double start, count;
-            double frameSizeBefore = oriCount / (WaveImage.RenderSize.Width + 1);
+            double frameSizeBefore = oriCount / (WaveCanvas.RenderSize.Width + 1);
             double fixedX = certer.X;
 
             count = oriCount / scale;
 
-            double frameSizeAfter = count / (WaveImage.RenderSize.Width + 1);
+            double frameSizeAfter = count / (WaveCanvas.RenderSize.Width + 1);
             double SampleOffset = (frameSizeBefore - frameSizeAfter) * fixedX;
             start = Start + SampleOffset;
 
@@ -164,7 +165,7 @@ namespace WaveBrowser
             double count = End - Start;
             double start;
 
-            double frameSize = count / (WaveImage.RenderSize.Width);
+            double frameSize = count / (WaveCanvas.RenderSize.Width);
             start = Start + offset * frameSize;
 
             if (start < 0)
