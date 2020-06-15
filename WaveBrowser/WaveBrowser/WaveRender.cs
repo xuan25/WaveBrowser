@@ -35,10 +35,7 @@ namespace WaveBrowser
             ViewStart = 0;
             ViewEnd = ChanelLength - 1;
 
-            //Parent.Dispatcher.Invoke(new Action(() =>
-            //{
-            WaveformBitmap = new WriteableBitmap(width, height, 72, 72, PixelFormats.Pbgra32, null);
-            //}));
+            WaveformBitmap = new WriteableBitmap(width, height, 96, 96, PixelFormats.Pbgra32, null);
         }
 
         public void UpdateView(double viewStart, double viewEnd)
@@ -50,60 +47,58 @@ namespace WaveBrowser
 
         private void Render(double viewStart, double viewEnd)
         {
-            Bitmap frameBitmap = null;
-
-            //Parent.Dispatcher.Invoke(new Action(() =>
-            //{
             WaveformBitmap.Lock();
-            frameBitmap = new Bitmap(WaveformBitmap.PixelWidth, WaveformBitmap.PixelHeight, WaveformBitmap.BackBufferStride, System.Drawing.Imaging.PixelFormat.Format32bppPArgb, WaveformBitmap.BackBuffer);
-            //}));
+            Bitmap frameBitmap = new Bitmap(WaveformBitmap.PixelWidth, WaveformBitmap.PixelHeight, WaveformBitmap.BackBufferStride, System.Drawing.Imaging.PixelFormat.Format32bppPArgb, WaveformBitmap.BackBuffer);
 
+            System.Drawing.Pen pen = new System.Drawing.Pen(WaveformColor);
             double channelHeight = this.Height / this.ChanelCount;
             double yScale = channelHeight / this.ChanelCount;
             double viewCount = viewEnd - viewStart;
-            if (viewCount > this.Width * 4)
+            if (viewCount > this.Width * 6)
             {
                 using (Graphics graphics = Graphics.FromImage(frameBitmap))
                 {
                     graphics.Clear(System.Drawing.Color.White);
-                    for (int c = 0; c < this.ChanelCount; c++)
+
+                    List<Task> tasks = new List<Task>();
+                    int taskNum = 16;
+                    for (int t = 0; t < taskNum; t++)
                     {
-                        float[] chanelData = this.WaveData[c];
-                        // pixel 2 pixel
-                        PointF[] pointFs = new PointF[this.Width * 2];
-                        double channelYOffset = c * channelHeight;
-                        bool flip = false;
-                        int windowSize = (int)(viewCount / this.Width);
-
-                        for (int x = 0; x < this.Width; x++)
+                        int ti = t;
+                        Task task = Task.Factory.StartNew(() =>
                         {
-                            int windowStart = (int)(viewStart + windowSize * x);
-
-                            float max = -1;
-                            float min = 1;
-                            for (int i = 0; i < windowSize; i++)
+                            for (int c = 0; c < this.ChanelCount; c++)
                             {
-                                float sample = chanelData[windowStart + i];
-                                if (sample > max)
-                                    max = sample;
-                                if (sample < min)
-                                    min = sample;
-                            }
+                                float[] chanelData = this.WaveData[c];
+                                double channelYOffset = c * channelHeight;
+                                int windowSize = (int)(viewCount / this.Width);
 
-                            if (flip)
-                            {
-                                pointFs[x * 2] = new PointF(x, (float)((-max + 1) * yScale + channelYOffset));
-                                pointFs[x * 2 + 1] = new PointF(x, (float)((-min + 1) * yScale + channelYOffset));
-                            }
-                            else
-                            {
-                                pointFs[x * 2 + 1] = new PointF(x, (float)((-max + 1) * yScale + channelYOffset));
-                                pointFs[x * 2] = new PointF(x, (float)((-min + 1) * yScale + channelYOffset));
-                            }
-                            flip = !flip;
+                                for (int x = this.Width * ti / taskNum; x < this.Width * (ti + 1) / taskNum; x++)
+                                {
+                                    int windowStart = (int)(viewStart + windowSize * x);
 
-                        }
-                        graphics.DrawLines(new System.Drawing.Pen(WaveformColor), pointFs);
+                                    float max = -1;
+                                    float min = 1;
+                                    for (int i = 0; i < windowSize; i++)
+                                    {
+                                        float sample = chanelData[windowStart + i];
+                                        if (sample > max)
+                                            max = sample;
+                                        if (sample < min)
+                                            min = sample;
+                                    }
+                                    lock (graphics)
+                                    {
+                                        graphics.DrawLine(pen, x, (float)((-max + 1) * yScale + channelYOffset), x, (float)((-min + 1) * yScale + channelYOffset));
+                                    }
+                                }
+                            }
+                        });
+                        tasks.Add(task);
+                    }
+                    for (int t = 0; t < taskNum; t++)
+                    {
+                        tasks[t].Wait();
                     }
                     graphics.Flush();
                 }
@@ -127,9 +122,9 @@ namespace WaveBrowser
                         double startPosition = (renderStart - this.ViewStart) * sampleWidth;
                         for (int i = 0; i < renderCount; i++)
                         {
-                            points[i] = new PointF((float)(i * sampleWidth + startPosition), (float)((-chanelData[renderStart+i] + 1) * yScale + channelYOffset));
+                            points[i] = new PointF((float)(i * sampleWidth + startPosition), (float)((-chanelData[renderStart + i] + 1) * yScale + channelYOffset));
                         }
-                        graphics.DrawCurve(new System.Drawing.Pen(WaveformColor), points);
+                        graphics.DrawCurve(pen, points);
                     }
                     graphics.Flush();
                 }
@@ -137,11 +132,8 @@ namespace WaveBrowser
 
             try
             {
-                //Parent.Dispatcher.Invoke(new Action(() =>
-                //{
                 WaveformBitmap.AddDirtyRect(new Int32Rect(0, 0, this.Width, this.Height));
                 WaveformBitmap.Unlock();
-                //}));
             }
             catch (TaskCanceledException)
             {
